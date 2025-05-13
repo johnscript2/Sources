@@ -1,0 +1,850 @@
+-- CRUMBLE COOKIE🍪 - MM2 Auto Farm PRO v3.3 (ULTIMATE FIX)
+-- Полный автофарм с исправлением всех багов
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Настройки
+local COLLECTION_SPEED = 0.05
+local TELEPORT_DISTANCE = 150
+local MOVEMENT_SPEED = 25
+local RARE_EGG_ATTEMPT_TIME = 2
+local JUMP_HEIGHT = 1.5
+local JUMP_COOLDOWN = 0.6
+local JUMP_CHECK_DISTANCE = 5
+local JUMP_ATTEMPTS = 2
+
+-- Цвета интерфейса
+local BLACK_MAIN = Color3.fromRGB(25, 25, 25)
+local PINK_ACCENT = Color3.fromRGB(255, 105, 180)
+local WHITE_TEXT = Color3.fromRGB(255, 255, 255)
+local DARK_GRAY_HEADER = Color3.fromRGB(40, 40, 40)
+local RED_CLOSE = Color3.fromRGB(255, 80, 80)
+local GRAY_NOTE = Color3.fromRGB(170, 170, 170)
+
+-- Шрифты
+local MAIN_FONT = Enum.Font.ArimoBold
+local SPECIAL_FONT = Enum.Font.FredokaOne
+
+-- Тексты интерфейса
+local TEXT_TITLE = "CRUMBLE COOKIE🍪"
+local TEXT_MINIMIZE = "-"
+local TEXT_CLOSE = "X"
+local TEXT_AUTO_EGG = "[🥚] EGGS FARM"
+local TEXT_AUTO_COINS = "[💰] COINS FARM"
+local TEXT_AUTO_BOTH = "[🥚💰] COIN & EGG FARM"
+local TEXT_AUTO_RARE = "[✨] RARE EGG FARM"
+local TEXT_ESP = "[👁️] ESP"
+local TEXT_SPAWN = "SPAWN"
+local TEXT_WEAPON_PLACEHOLDER = "Enter Weapon Name"
+local TEXT_RARE_EGG_NOTE = "Maybe little bugs with egg which you have"
+
+-- Размеры текста
+local TEXT_SIZE_TITLE = 18
+local TEXT_SIZE_BUTTON = 14
+local TEXT_SIZE_NOTE = 10
+local TEXT_SIZE_WEAPON = 12
+
+if _G.AutoFarmMM2IsLoaded then return end
+_G.AutoFarmMM2IsLoaded = true
+
+-- Сервисы
+local Player = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoinCollectedEvent = game.ReplicatedStorage.Remotes.Gameplay.CoinCollected
+local RoundStartEvent = game.ReplicatedStorage.Remotes.Gameplay.RoundStart
+local RoundEndEvent = game.ReplicatedStorage.Remotes.Gameplay.RoundEndFade
+local autofarmstopevent = Instance.new("BindableEvent")
+
+-- Переменные состояния
+local AutofarmStarted = false
+local AutofarmIN = false
+local LastJumpTime = 0
+local RareEggsF = false
+local SavePartPos = nil
+local FullEggBag = false
+local CurrentCoinTypes = {}
+local CollectedCoins = {}
+local NeededCoinTypes = {}
+local ESPEnabled = false
+local roles = {}
+local activeFarmButton = nil
+local currentTween = nil
+local processedEggs = {}
+local isAttemptingRareEgg = false
+local LastCoinTouchTime = 0
+
+-- Создание GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CrumbleCookieMM2"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 305)
+MainFrame.AnchorPoint = Vector2.new(1, 0)
+MainFrame.Position = UDim2.new(1, -10, 0, 10)
+MainFrame.BackgroundColor3 = BLACK_MAIN
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+-- Заголовок
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
+TitleBar.BackgroundColor3 = DARK_GRAY_HEADER
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleBar
+
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(0.7, 0, 1, 0)
+Title.Position = UDim2.new(0.05, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = TEXT_TITLE
+Title.TextColor3 = WHITE_TEXT
+Title.Font = MAIN_FONT
+Title.TextSize = TEXT_SIZE_TITLE
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextYAlignment = Enum.TextYAlignment.Center
+Title.Parent = TitleBar
+
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -60, 0, 0)
+MinimizeButton.BackgroundColor3 = DARK_GRAY_HEADER
+MinimizeButton.Text = TEXT_MINIMIZE
+MinimizeButton.TextColor3 = WHITE_TEXT
+MinimizeButton.Font = SPECIAL_FONT
+MinimizeButton.TextSize = TEXT_SIZE_TITLE
+MinimizeButton.TextYAlignment = Enum.TextYAlignment.Center
+MinimizeButton.Parent = TitleBar
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 12)
+MinimizeCorner.Parent = MinimizeButton
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.BackgroundColor3 = DARK_GRAY_HEADER
+CloseButton.Text = TEXT_CLOSE
+CloseButton.TextColor3 = RED_CLOSE
+CloseButton.Font = SPECIAL_FONT
+CloseButton.TextSize = TEXT_SIZE_TITLE
+CloseButton.TextYAlignment = Enum.TextYAlignment.Center
+CloseButton.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 12)
+CloseCorner.Parent = CloseButton
+
+-- Функции управления GUI
+local isMinimized = false
+local originalSize = MainFrame.Size
+local minimizedSize = UDim2.new(0, 300, 0, 30)
+local childrenVisibility = {}
+
+local function ToggleMinimize()
+    isMinimized = not isMinimized
+    if isMinimized then
+        for _, child in ipairs(MainFrame:GetChildren()) do
+            if child ~= TitleBar and child ~= UICorner then
+                childrenVisibility[child] = child.Visible
+                child.Visible = false
+            end
+        end
+        MainFrame.Size = minimizedSize
+    else
+        MainFrame.Size = originalSize
+        for child, visible in pairs(childrenVisibility) do
+            child.Visible = visible
+        end
+        childrenVisibility = {}
+    end
+end
+
+MinimizeButton.MouseButton1Click:Connect(ToggleMinimize)
+
+-- Перемещение GUI
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    MainFrame.Position = newPos
+end
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Основные функции
+local function AntiAFK()
+    local VirtualUser = game:GetService("VirtualUser")
+    Player.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+end
+
+local function returncoincontaier()
+    for _, v in workspace:GetChildren() do
+        if v:FindFirstChild("CoinContainer") and v:IsA("Model") then
+            return v:FindFirstChild("CoinContainer")
+        end
+    end
+    return false
+end
+
+local function CreateSavePart()
+    local w = Instance.new("Part")
+    w.Size = Vector3.new(12, 1, 12)
+    w.Position = Player.Character.HumanoidRootPart.Position + Vector3.new(0, 120, 0)
+    w.Transparency = 1
+    w.Anchored = true
+    w.CanCollide = false
+    w.Parent = workspace
+    SavePartPos = w.CFrame * CFrame.new(0, 6, 0)
+end
+
+local function PcallTP(Position)
+    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+        Player.Character.HumanoidRootPart.CFrame = Position
+    end
+end
+
+local function FindNearestCoin(container)
+    local coins = {}
+    
+    for _, v in pairs(container:GetChildren()) do
+        if v:FindFirstChild("TouchInterest") then
+            local coinType = v:GetAttribute("CoinID")
+            if NeededCoinTypes[coinType] and 
+               (not CollectedCoins[coinType] or 
+                CollectedCoins[coinType].current < CollectedCoins[coinType].max) then
+                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (Player.Character.HumanoidRootPart.Position - v.Position).Magnitude
+                    table.insert(coins, {
+                        coin = v,
+                        distance = distance,
+                        type = coinType
+                    })
+                end
+            end
+        end
+    end
+    
+    table.sort(coins, function(a, b)
+        return a.distance < b.distance
+    end)
+    
+    if #coins > 0 then
+        return {coins[1].coin, coins[1].distance, coins[1].type}
+    else
+        return {nil, math.huge, nil}
+    end
+end
+
+local function UpdateNeededTypes()
+    NeededCoinTypes = {}
+    if activeFarmButton and activeFarmButton.Name == "AUTO_COIN_EGG" then
+        NeededCoinTypes.Egg = true
+        NeededCoinTypes.Coin = true
+        return
+    end
+    
+    for _, coinType in ipairs(CurrentCoinTypes) do
+        NeededCoinTypes[coinType] = true
+    end
+end
+
+local function StartAutofarm()
+    AutofarmStarted = true
+    AutofarmIN = true
+    CollectedCoins = {}
+    
+    if activeFarmButton and activeFarmButton.Name == "AUTO_COIN_EGG" then
+        NeededCoinTypes.Egg = true
+        NeededCoinTypes.Coin = true
+    end
+    
+    UpdateNeededTypes()
+    
+    task.delay(0.5, function()
+        if activeFarmButton and activeFarmButton.Name == "AUTO_COIN_EGG" then
+            NeededCoinTypes.Egg = true
+            NeededCoinTypes.Coin = true
+        end
+    end)
+end
+
+local function StopAutofarm()
+    AutofarmStarted = false
+    AutofarmIN = false
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+    autofarmstopevent:Fire()
+end
+
+local function IsOnCoin()
+    if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    local root = Player.Character.HumanoidRootPart
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {Player.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    
+    for x = -1, 1 do
+        for z = -1, 1 do
+            local offset = Vector3.new(x * 2, 0, z * 2)
+            local raycastResult = workspace:Raycast(root.Position + offset, Vector3.new(0, -JUMP_CHECK_DISTANCE, 0), raycastParams)
+            if raycastResult and raycastResult.Instance:IsDescendantOf(returncoincontaier()) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function Jump()
+    if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        local humanoid = Player.Character.Humanoid
+        humanoid.Jump = true
+        local root = Player.Character.HumanoidRootPart
+        root.Velocity = Vector3.new(root.Velocity.X, JUMP_HEIGHT * 30, root.Velocity.Z)
+    end
+end
+
+local function CollectCoin(coin)
+    if not coin or not coin:FindFirstChild("TouchInterest") then return end
+    
+    local jumpCount = 0
+    local lastJumpTime = 0
+    local startTime = tick()
+    LastCoinTouchTime = tick()
+    
+    while coin:FindFirstChild("TouchInterest") and AutofarmIN do
+        if not coin:FindFirstChild("TouchInterest") then break end
+        
+        if tick() - LastCoinTouchTime > 2.5 and jumpCount < 2 then
+            if IsOnCoin() and tick() - lastJumpTime > JUMP_COOLDOWN then
+                Jump()
+                lastJumpTime = tick()
+                jumpCount = jumpCount + 1
+            end
+        end
+        
+        task.wait()
+    end
+end
+
+local function AutoRareEggsB()
+    while RareEggsF and task.wait(0.2) do
+        if returncoincontaier() and Player:GetAttribute("Alive") and not isAttemptingRareEgg then
+            local rareEggs = {}
+            for _, egg in pairs(returncoincontaier():GetChildren()) do
+                if egg:GetAttribute("CoinID") == "RareEgg" and 
+                   egg:FindFirstChildOfClass("MeshPart") and 
+                   egg:FindFirstChildOfClass("MeshPart").Transparency < 0.6 then
+                    table.insert(rareEggs, egg)
+                end
+            end
+            
+            table.sort(rareEggs, function(a, b)
+                return (Player.Character.HumanoidRootPart.Position - a.Position).Magnitude < 
+                       (Player.Character.HumanoidRootPart.Position - b.Position).Magnitude
+            end)
+            
+            for _, egg in ipairs(rareEggs) do
+                local eggId = tostring(egg.Position)
+                
+                if not processedEggs[eggId] then
+                    isAttemptingRareEgg = true
+                    processedEggs[eggId] = true
+                    
+                    PcallTP(egg.CFrame)
+                    
+                    local startTime = os.time()
+                    while os.time() - startTime < RARE_EGG_ATTEMPT_TIME and RareEggsF do
+                        if IsOnCoin() and tick() - LastJumpTime > JUMP_COOLDOWN then
+                            Jump()
+                            LastJumpTime = tick()
+                        end
+                        task.wait()
+                    end
+                    
+                    if FullEggBag then
+                        PcallTP(SavePartPos)
+                    end
+                    
+                    isAttemptingRareEgg = false
+                    break
+                end
+            end
+        end
+    end
+end
+
+-- Функции для кнопок фарма
+local function DeactivateCurrentFarm()
+    if activeFarmButton then
+        activeFarmButton.Text = activeFarmButton.Text:gsub(": ON", ": OFF")
+        activeFarmButton.BackgroundColor3 = DARK_GRAY_HEADER
+        activeFarmButton = nil
+    end
+end
+
+local function SetFarmType(type, button)
+    if activeFarmButton == button then
+        DeactivateCurrentFarm()
+        StopAutofarm()
+        return
+    end
+    
+    DeactivateCurrentFarm()
+    
+    CurrentCoinTypes = type
+    activeFarmButton = button
+    
+    button.Text = button.Text:gsub(": OFF", ": ON")
+    button.BackgroundColor3 = PINK_ACCENT
+    
+    CollectedCoins = {}
+    UpdateNeededTypes()
+    
+    if AutofarmStarted then
+        AutofarmIN = true
+    else
+        StartAutofarm()
+    end
+end
+
+local function ToggleEggFarm(button)
+    SetFarmType({"Egg"}, button)
+end
+
+local function ToggleCoinFarm(button)
+    SetFarmType({"Coin"}, button)
+end
+
+local function ToggleBothFarm(button)
+    if activeFarmButton == button then
+        DeactivateCurrentFarm()
+        StopAutofarm()
+        return
+    end
+    
+    DeactivateCurrentFarm()
+    
+    CurrentCoinTypes = {"Egg", "Coin"}
+    NeededCoinTypes = {Egg = true, Coin = true}
+    
+    activeFarmButton = button
+    button.Text = button.Text:gsub(": OFF", ": ON")
+    button.BackgroundColor3 = PINK_ACCENT
+    
+    CollectedCoins = {}
+    NeededCoinTypes.Egg = true
+    NeededCoinTypes.Coin = true
+    
+    if AutofarmStarted then
+        AutofarmIN = true
+    else
+        StartAutofarm()
+    end
+    
+    task.delay(1, function()
+        NeededCoinTypes.Egg = true
+        NeededCoinTypes.Coin = true
+    end)
+end
+
+local function ToggleRareEggs(button)
+    if RareEggsF then
+        RareEggsF = false
+        button.Text = button.Text:gsub(": ON", ": OFF")
+        button.BackgroundColor3 = DARK_GRAY_HEADER
+        CurrentCoinTypes = {"Egg"}
+        UpdateNeededTypes()
+        return
+    end
+    
+    RareEggsF = true
+    button.Text = button.Text:gsub(": OFF", ": ON")
+    button.BackgroundColor3 = PINK_ACCENT
+    CurrentCoinTypes = {"Egg", "RareEgg"}
+    UpdateNeededTypes()
+    AutoRareEggsB()
+end
+
+-- Функции ESP
+local function IsAlive(Player)
+    for i, v in pairs(roles) do
+        if Player.Name == i then
+            return not v.Killed and not v.Dead
+        end
+    end
+    return false
+end
+
+local function CreateHighlight()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character and not v.Character:FindFirstChild("Highlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Parent = v.Character
+        end
+    end
+end
+
+local function UpdateHighlights()
+    local Murder, Sheriff, Hero
+    
+    for i, v in pairs(roles) do
+        if v.Role == "Murderer" then
+            Murder = i
+        elseif v.Role == 'Sheriff' then
+            Sheriff = i
+        elseif v.Role == 'Hero' then
+            Hero = i
+        end
+    end
+
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character and v.Character:FindFirstChild("Highlight") then
+            local Highlight = v.Character:FindFirstChild("Highlight")
+            if v.Name == Sheriff and IsAlive(v) then
+                Highlight.FillColor = Color3.fromRGB(0, 0, 255)
+                Highlight.OutlineColor = Color3.fromRGB(0, 0, 200)
+            elseif v.Name == Murder and IsAlive(v) then
+                Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                Highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
+            elseif v.Name == Hero and IsAlive(v) and (not Sheriff or not IsAlive(game.Players[Sheriff])) then
+                Highlight.FillColor = Color3.fromRGB(255, 255, 0)
+                Highlight.OutlineColor = Color3.fromRGB(200, 200, 0)
+            else
+                Highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                Highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
+            end
+        end
+    end
+end
+
+local function ToggleESP(button)
+    ESPEnabled = not ESPEnabled
+    
+    if ESPEnabled then
+        button.Text = button.Text:gsub(": OFF", ": ON")
+        button.BackgroundColor3 = PINK_ACCENT
+        spawn(function()
+            while ESPEnabled do
+                roles = game.ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
+                CreateHighlight()
+                UpdateHighlights()
+                RunService.RenderStepped:Wait()
+            end
+        end)
+    else
+        button.Text = button.Text:gsub(": ON", ": OFF")
+        button.BackgroundColor3 = DARK_GRAY_HEADER
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= Player and v.Character and v.Character:FindFirstChild("Highlight") then
+                v.Character:FindFirstChild("Highlight"):Destroy()
+            end
+        end
+    end
+end
+
+-- Функция спавна оружия
+local function spawnWeapon(name)
+    local DataBase, PlayerData = require(game:GetService("ReplicatedStorage").Database.Sync.Item), 
+                               require(game:GetService("ReplicatedStorage").Modules.ProfileData)
+    local PlayerWeapons = PlayerData.Weapons
+
+    if not PlayerWeapons.Owned[name] then
+        PlayerWeapons.Owned[name] = 1
+    else
+        PlayerWeapons.Owned[name] += 1
+    end
+
+    game:GetService("RunService"):BindToRenderStep("InventoryUpdate", 0, function()
+        PlayerData.Weapons = PlayerWeapons
+    end)
+
+    game.Players.LocalPlayer.Character:BreakJoints()
+end
+
+-- Создание кнопок
+local buttonHeight = 35
+local buttonSpacing = 8
+local startY = 35
+local currentY = startY
+
+local function CreateButton(name, text, yPos, callback)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(0.8, 0, 0, buttonHeight)
+    button.Position = UDim2.new(0.1, 0, 0, yPos)
+    button.BackgroundColor3 = DARK_GRAY_HEADER
+    button.Text = text..": OFF"
+    button.TextColor3 = WHITE_TEXT
+    button.Font = MAIN_FONT
+    button.TextSize = TEXT_SIZE_BUTTON
+    button.TextYAlignment = Enum.TextYAlignment.Center
+    button.Parent = MainFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+    
+    button.MouseButton1Click:Connect(function()
+        callback(button)
+    end)
+    return button
+end
+
+-- Инициализация кнопок
+local autoEggBtn = CreateButton("AUTO_EGG", TEXT_AUTO_EGG, currentY, ToggleEggFarm)
+currentY = currentY + buttonHeight + buttonSpacing
+
+local autoCoinsBtn = CreateButton("AUTO_COINS", TEXT_AUTO_COINS, currentY, ToggleCoinFarm)
+currentY = currentY + buttonHeight + buttonSpacing
+
+local autoBothBtn = CreateButton("AUTO_COIN_EGG", TEXT_AUTO_BOTH, currentY, ToggleBothFarm)
+currentY = currentY + buttonHeight + buttonSpacing
+
+local autoRareBtn = CreateButton("AUTO_RARE_EGGS", TEXT_AUTO_RARE, currentY, ToggleRareEggs)
+
+local RareEggNote = Instance.new("TextLabel")
+RareEggNote.Name = "RareEggNote"
+RareEggNote.Size = UDim2.new(0.8, 0, 0, 15)
+RareEggNote.Position = UDim2.new(0.1, 0, 0, currentY + buttonHeight - 3)
+RareEggNote.BackgroundTransparency = 1
+RareEggNote.Text = TEXT_RARE_EGG_NOTE
+RareEggNote.TextColor3 = GRAY_NOTE
+RareEggNote.Font = MAIN_FONT
+RareEggNote.TextSize = TEXT_SIZE_NOTE
+RareEggNote.TextXAlignment = Enum.TextXAlignment.Center
+RareEggNote.TextYAlignment = Enum.TextYAlignment.Center
+RareEggNote.Parent = MainFrame
+
+currentY = currentY + buttonHeight + buttonSpacing + 10
+
+local ESPButton = Instance.new("TextButton")
+ESPButton.Name = "ESP"
+ESPButton.Size = UDim2.new(0.8, 0, 0, buttonHeight)
+ESPButton.Position = UDim2.new(0.1, 0, 0, currentY)
+ESPButton.BackgroundColor3 = DARK_GRAY_HEADER
+ESPButton.TextColor3 = WHITE_TEXT
+ESPButton.Text = TEXT_ESP..": OFF"
+ESPButton.Font = MAIN_FONT
+ESPButton.TextSize = TEXT_SIZE_BUTTON
+ESPButton.TextYAlignment = Enum.TextYAlignment.Center
+ESPButton.Parent = MainFrame
+
+local ESPCorner = Instance.new("UICorner")
+ESPCorner.CornerRadius = UDim.new(0, 8)
+ESPCorner.Parent = ESPButton
+
+ESPButton.MouseButton1Click:Connect(function()
+    ToggleESP(ESPButton)
+end)
+
+currentY = currentY + buttonHeight + buttonSpacing
+
+local WeaponBox = Instance.new("TextBox")
+WeaponBox.Name = "WeaponBox"
+WeaponBox.Size = UDim2.new(0.6, 0, 0, buttonHeight)
+WeaponBox.Position = UDim2.new(0.1, 0, 0, currentY)
+WeaponBox.BackgroundColor3 = DARK_GRAY_HEADER
+WeaponBox.TextColor3 = WHITE_TEXT
+WeaponBox.Font = MAIN_FONT
+WeaponBox.TextSize = TEXT_SIZE_WEAPON
+WeaponBox.TextYAlignment = Enum.TextYAlignment.Center
+WeaponBox.Text = ""
+WeaponBox.PlaceholderText = TEXT_WEAPON_PLACEHOLDER
+WeaponBox.PlaceholderColor3 = GRAY_NOTE
+WeaponBox.Parent = MainFrame
+
+local WeaponCorner = Instance.new("UICorner")
+WeaponCorner.CornerRadius = UDim.new(0, 8)
+WeaponCorner.Parent = WeaponBox
+
+local SpawnButton = Instance.new("TextButton")
+SpawnButton.Name = "SpawnButton"
+SpawnButton.Size = UDim2.new(0.18, 0, 0, buttonHeight)
+SpawnButton.Position = UDim2.new(0.72, 0, 0, currentY)
+SpawnButton.BackgroundColor3 = PINK_ACCENT
+SpawnButton.TextColor3 = WHITE_TEXT
+SpawnButton.Text = TEXT_SPAWN
+SpawnButton.Font = MAIN_FONT
+SpawnButton.TextSize = TEXT_SIZE_WEAPON
+SpawnButton.TextYAlignment = Enum.TextYAlignment.Center
+SpawnButton.Parent = MainFrame
+
+local SpawnCorner = Instance.new("UICorner")
+SpawnCorner.CornerRadius = UDim.new(0, 8)
+SpawnCorner.Parent = SpawnButton
+
+SpawnButton.MouseButton1Click:Connect(function()
+    local weaponName = WeaponBox.Text
+    if weaponName ~= "" then
+        spawnWeapon(weaponName)
+        WeaponBox.Text = ""
+    end
+end)
+
+-- Основной цикл автофарма
+spawn(function()
+    AntiAFK()
+    while task.wait(COLLECTION_SPEED) do
+        if AutofarmStarted and AutofarmIN and not isAttemptingRareEgg and Player.Character and returncoincontaier() and Player:GetAttribute("Alive") then
+            
+            -- Дополнительная проверка для AUTO_COIN_EGG
+            if activeFarmButton and activeFarmButton.Name == "AUTO_COIN_EGG" then
+                if not NeededCoinTypes.Egg then NeededCoinTypes.Egg = true end
+                if not NeededCoinTypes.Coin then NeededCoinTypes.Coin = true end
+            end
+            
+            local coinData = FindNearestCoin(returncoincontaier())
+            local coin, distance = coinData[1], coinData[2]
+            
+            if coin then
+                if distance > TELEPORT_DISTANCE then
+                    PcallTP(coin.CFrame)
+                else
+                    if currentTween then
+                        currentTween:Cancel()
+                    end
+                    
+                    currentTween = TweenService:Create(
+                        Player.Character.HumanoidRootPart,
+                        TweenInfo.new(distance / MOVEMENT_SPEED, Enum.EasingStyle.Linear),
+                        {CFrame = coin.CFrame}
+                    )
+                    currentTween:Play()
+                    
+                    autofarmstopevent.Event:Connect(function()
+                        if currentTween then
+                            currentTween:Cancel()
+                            currentTween = nil
+                        end
+                    end)
+                    
+                    repeat 
+                        if IsOnCoin() then
+                            CollectCoin(coin)
+                        end
+                        task.wait()
+                    until not coin:FindFirstChild("TouchInterest") or not AutofarmIN or isAttemptingRareEgg
+                    
+                    if currentTween then
+                        currentTween:Cancel()
+                        currentTween = nil
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Обработчики событий
+CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
+    LastCoinTouchTime = tick()
+    CollectedCoins[cointype] = {
+        current = tonumber(current),
+        max = tonumber(max)
+    }
+    
+    UpdateNeededTypes()
+    
+    -- Проверяем заполненность только для активных типов
+    local allFull = true
+    for coinType, _ in pairs(NeededCoinTypes) do
+        if coinType == "Coin" or coinType == "Egg" then
+            if not CollectedCoins[coinType] or CollectedCoins[coinType].current < CollectedCoins[coinType].max then
+                allFull = false
+                break
+            end
+        end
+    end
+    
+    -- Останавливаем только если заполнены ВСЕ активные типы
+    if allFull then
+        AutofarmIN = false
+        FullEggBag = true
+        CreateSavePart()
+        PcallTP(SavePartPos)
+    else
+        -- Продолжаем фарм если хотя бы один тип не заполнен
+        AutofarmIN = AutofarmStarted
+    end
+end)
+
+RoundStartEvent.OnClientEvent:Connect(function()
+    CollectedCoins = {}
+    processedEggs = {}
+    UpdateNeededTypes()
+    AutofarmIN = AutofarmStarted
+    FullEggBag = false
+end)
+
+RoundEndEvent.OnClientEvent:Connect(function()
+    AutofarmIN = false
+    FullEggBag = false
+end)
+
+-- Закрытие GUI
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    _G.AutoFarmMM2IsLoaded = false
+end)
